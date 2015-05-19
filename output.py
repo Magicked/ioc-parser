@@ -45,13 +45,13 @@ class OutputHandler(object):
 class OutputHandler_csv(OutputHandler):
     def __init__(self):
         self.csv_writer = csv.writer(sys.stdout, delimiter = ',')
-	self.csv_writer.writerow(('Indicator', 'Type', 'Campaign', 'Campaign Confidence', 'Confidence', 'Impact', 'Bucket List'))
+	self.csv_writer.writerow(('Indicator', 'Type', 'Campaign', 'Campaign Confidence', 'Confidence', 'Impact', 'Bucket List', 'Ticket', 'Action'))
 
     def print_match(self, match, ind_type, campaign, campaign_confidence, confidence, impact, tags):
-        self.csv_writer.writerow((match, TYPE_CONVERSION[ind_type], campaign, campaign_confidence, confidence, impact, tags))
+        self.csv_writer.writerow((match, TYPE_CONVERSION[ind_type], campaign, campaign_confidence, confidence, impact, tags, "", ""))
 
     def print_error(self, fpath, exception):
-        self.csv_writer.writerow((exception, 'error', 'error', 'low', 'low', 'low', 'error'))
+        self.csv_writer.writerow((exception, 'error', 'error', 'low', 'low', 'low', 'error', 'error', 'error'))
 
 class OutputHandler_json(OutputHandler):
     def print_match(self, fpath, page, name, match):
