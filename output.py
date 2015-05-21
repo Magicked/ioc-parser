@@ -49,7 +49,7 @@ class OutputHandler(object):
 
 class OutputHandler_csv(OutputHandler):
     def __init__(self, output_file):
-        OutputHandler.__init__(self)
+        OutputHandler.__init__(self, output_file)
         self.csv_writer = csv.writer(self.output_handle, delimiter = ',')
         self.csv_writer.writerow(('Indicator', 'Type', 'Campaign', 'Campaign Confidence', 'Confidence', 'Impact', 'Bucket List', 'Ticket', 'Action'))
 

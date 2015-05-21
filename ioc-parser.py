@@ -41,6 +41,7 @@ import sys
 import fnmatch
 import argparse
 import re
+import string
 from StringIO import StringIO
 try:
     import configparser as ConfigParser
@@ -81,7 +82,7 @@ from whitelist import WhiteList
 class IOC_Parser(object):
     patterns = {}
 
-    def __init__(self, patterns_ini, input_format = 'pdf', output_format='csv', dedup=False, library='pypdf2', campaign='Unknown', campaign_confidence='low', confidence='low', impact='low', tags=[], output_file):
+    def __init__(self, patterns_ini, output_file, input_format = 'pdf', output_format='csv', dedup=False, library='pypdf2', campaign='Unknown', campaign_confidence='low', confidence='low', impact='low', tags=[] ):
         basedir = os.path.dirname(os.path.abspath(__file__))
         self.load_patterns(patterns_ini)
         self.whitelist = WhiteList(basedir)
@@ -134,11 +135,25 @@ class IOC_Parser(object):
 
         return False
 
+    def run_subs(self, data):
+        if type(data) != str:
+            return line
+        data = data.replace("[.]", ".")
+        data = data.replace("hxxp://", "http://")
+        data = data.replace("hxxps://", "https://")
+        data = data.replace("meow://", "http://")
+
+        return data
+
     def parse_page(self, fpath, data, page_num):
         try:
             if self.dedup:
                 self.dedup_store = set()
 
+            # Find and replace patterns
+            data = self.run_subs(data)
+
+            # Look for patterns
             for ind_type, ind_regex in self.patterns.items():
                 matches = ind_regex.findall(data)
 
@@ -306,7 +321,7 @@ if __name__ == "__main__":
     argparser.add_argument('-t', action='append', dest='TAGS', default=[], help='Bucket list tags for crits. Multiple -t options are allowed.')
     args = argparser.parse_args()
 
-    parser = IOC_Parser(args.INI, args.INPUT_FORMAT, args.OUTPUT_FORMAT, args.DEDUP, args.LIB, args.CAMPAIGN, args.CAMPAIGN_CONFIDENCE, args.INDICATOR_CONFIDENCE, args.INDICATOR_IMPACT, args.TAGS, args.OUTFILE)
+    parser = IOC_Parser(args.INI, args.OUTFILE, args.INPUT_FORMAT, args.OUTPUT_FORMAT, args.DEDUP, args.LIB, args.CAMPAIGN, args.CAMPAIGN_CONFIDENCE, args.INDICATOR_CONFIDENCE, args.INDICATOR_IMPACT, args.TAGS)
     if os.path.exists(args.OUTFILE) and not args.FORCE:
         SystemExit("{0} already exists! Use -f to force overwrite.".format(args.OUTFILE))
     parser.parse(args.PATH)
