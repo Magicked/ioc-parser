@@ -18,7 +18,7 @@ TYPE_CONVERSION = {
     "SHA256" : "Hash - SHA256"
     }
 
-def getHandler(output_format):
+def getHandler(output_format, output_file):
     output_format = output_format.lower()
     if output_format not in OUTPUT_FORMATS:
         print("[WARNING] Invalid output format specified.. using CSV")
@@ -27,9 +27,13 @@ def getHandler(output_format):
     handler_format = "OutputHandler_" + output_format
     handler_class = getattr(sys.modules[__name__], handler_format)
 
-    return handler_class()
+    return handler_class(output_file)
 
 class OutputHandler(object):
+    def __init__(self, output_file):
+        self.output_file = output_file
+        self.output_handle = open(self.output_file, "w")
+
     def print_match(self, fpath, page, name, match):
         pass
 
@@ -37,15 +41,17 @@ class OutputHandler(object):
         pass
 
     def print_footer(self, fpath):
+        self.output_handle.close()
         pass
 
     def print_error(self, fpath, exception):
         print("[ERROR] %s" % (exception))
 
 class OutputHandler_csv(OutputHandler):
-    def __init__(self):
-        self.csv_writer = csv.writer(sys.stdout, delimiter = ',')
-	self.csv_writer.writerow(('Indicator', 'Type', 'Campaign', 'Campaign Confidence', 'Confidence', 'Impact', 'Bucket List', 'Ticket', 'Action'))
+    def __init__(self, output_file):
+        OutputHandler.__init__(self)
+        self.csv_writer = csv.writer(self.output_handle, delimiter = ',')
+        self.csv_writer.writerow(('Indicator', 'Type', 'Campaign', 'Campaign Confidence', 'Confidence', 'Impact', 'Bucket List', 'Ticket', 'Action'))
 
     def print_match(self, match, ind_type, campaign, campaign_confidence, confidence, impact, tags):
         self.csv_writer.writerow((match, TYPE_CONVERSION[ind_type], campaign, campaign_confidence, confidence, impact, tags, "", ""))
@@ -63,7 +69,7 @@ class OutputHandler_json(OutputHandler):
             'match': match
         }
 
-        print(json.dumps(data))
+        self.output_handle.write(json.dumps(data))
 
     def print_error(self, fpath, exception):
         data = {
@@ -73,10 +79,11 @@ class OutputHandler_json(OutputHandler):
             'exception' : exception
         }
 
-        print(json.dumps(data))
+        self.output_handle.write(json.dumps(data))
 
 class OutputHandler_yara(OutputHandler):
     def __init__(self):
+        OutputHandler.__init__(self)
         self.rule_enc = ''.join(chr(c) if chr(c).isupper() or chr(c).islower() or chr(c).isdigit() else '_' for c in range(256))
 
     def print_match(self, fpath, page, name, match):
@@ -84,18 +91,18 @@ class OutputHandler_yara(OutputHandler):
             self.cnt[name] += 1
         else:
             self.cnt[name] = 1
-        
+
         string_id = "$%s%d" % (name, self.cnt[name])
         self.sids.append(string_id)
         string_value = match.replace('\\', '\\\\')
-        print("\t\t%s = \"%s\"" % (string_id, string_value))
+        self.output_handle.write("\t\t%s = \"%s\"" % (string_id, string_value))
 
     def print_header(self, fpath):
         rule_name = os.path.splitext(os.path.basename(fpath))[0].translate(self.rule_enc)
 
-        print("rule %s" % (rule_name))
-        print("{")
-        print("\tstrings:")
+        self.output_handle.write("rule %s" % (rule_name))
+        self.output_handle.write("{")
+        self.output_handle.write("\tstrings:")
 
         self.cnt = {}
         self.sids = []
@@ -103,6 +110,8 @@ class OutputHandler_yara(OutputHandler):
     def print_footer(self, fpath):
         cond = ' or '.join(self.sids)
 
-        print("\tcondition:")
-        print("\t\t" + cond)
-        print("}")
+        self.output_handle.write("\tcondition:")
+        self.output_handle.write("\t\t" + cond)
+        self.output_handle.write("}")
+
+        OutputHandler.print_footer(self)

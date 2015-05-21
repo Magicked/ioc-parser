@@ -81,11 +81,12 @@ from whitelist import WhiteList
 class IOC_Parser(object):
     patterns = {}
 
-    def __init__(self, patterns_ini, input_format = 'pdf', output_format='csv', dedup=False, library='pypdf2', campaign='Unknown', campaign_confidence='low', confidence='low', impact='low', tags=[]):
+    def __init__(self, patterns_ini, input_format = 'pdf', output_format='csv', dedup=False, library='pypdf2', campaign='Unknown', campaign_confidence='low', confidence='low', impact='low', tags=[], output_file):
         basedir = os.path.dirname(os.path.abspath(__file__))
         self.load_patterns(patterns_ini)
         self.whitelist = WhiteList(basedir)
-        self.handler = output.getHandler(output_format)
+        self.output_file = output_file
+        self.handler = output.getHandler(output_format, output_file)
         self.dedup = dedup
         self.campaign = campaign
         self.campaign_confidence = campaign_confidence
@@ -187,7 +188,7 @@ class IOC_Parser(object):
     def parse_pdf_pdfminer(self, f, fpath):
         try:
             laparams = LAParams()
-            laparams.all_texts = True  
+            laparams.all_texts = True
             rsrcmgr = PDFResourceManager()
             pagenos = set()
 
@@ -291,10 +292,12 @@ class IOC_Parser(object):
 if __name__ == "__main__":
     argparser = argparse.ArgumentParser()
     argparser.add_argument('PATH', action='store', help='File/directory/URL to report(s)')
+    argparser.add_argument('OUTFILE', action='store', help='File path and name to write output contents')
     argparser.add_argument('-p', dest='INI', default=os.path.join(os.path.dirname(os.path.abspath(__file__)), 'patterns.ini'), help='Pattern file')
     argparser.add_argument('-i', dest='INPUT_FORMAT', default='pdf', help='Input format (pdf/txt)')
     argparser.add_argument('-o', dest='OUTPUT_FORMAT', default='csv', help='Output format (csv/json/yara)')
     argparser.add_argument('-d', dest='DEDUP', action='store_true', default=False, help='Deduplicate matches')
+    argparser.add_argument('-f', dest='FORCE', action='store_true', default=False, help='Force output file overwrite')
     argparser.add_argument('-l', dest='LIB', default='pdfminer', help='PDF parsing library (pypdf2/pdfminer)')
     argparser.add_argument('-c', dest='CAMPAIGN', default='Unknown', help='Campaign attribution')
     argparser.add_argument('--camp-conf', dest='CAMPAIGN_CONFIDENCE', default='low', help='Campaign confidence for crits')
@@ -303,5 +306,7 @@ if __name__ == "__main__":
     argparser.add_argument('-t', action='append', dest='TAGS', default=[], help='Bucket list tags for crits. Multiple -t options are allowed.')
     args = argparser.parse_args()
 
-    parser = IOC_Parser(args.INI, args.INPUT_FORMAT, args.OUTPUT_FORMAT, args.DEDUP, args.LIB, args.CAMPAIGN, args.CAMPAIGN_CONFIDENCE, args.INDICATOR_CONFIDENCE, args.INDICATOR_IMPACT, args.TAGS)
+    parser = IOC_Parser(args.INI, args.INPUT_FORMAT, args.OUTPUT_FORMAT, args.DEDUP, args.LIB, args.CAMPAIGN, args.CAMPAIGN_CONFIDENCE, args.INDICATOR_CONFIDENCE, args.INDICATOR_IMPACT, args.TAGS, args.OUTFILE)
+    if os.path.exists(args.OUTFILE) and not args.FORCE:
+        SystemExit("{0} already exists! Use -f to force overwrite.".format(args.OUTFILE))
     parser.parse(args.PATH)
